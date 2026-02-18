@@ -2,13 +2,13 @@
 export const studentsDatabase = [
     // ============================================
     // আপনার আসল শিক্ষার্থীদের ডেটা এখানে যোগ করুন
-    // Format: { rollNo: "রোল_নম্বর", name: "শিক্ষার্থীর_নাম" },
+    // Format: { rollNo: "রোল_নম্বর", name: "শিক্ষার্থীর_নাম", batch: "ব্যাচ_নম্বর" },
     // ============================================
 
     // Example entries (এগুলো মুছে দিয়ে আপনার ডেটা যোগ করুন):
-    { rollNo: "101", name: "Rahim Ahmed" },
-    { rollNo: "102", name: "Karim Hassan" },
-    { rollNo: "103", name: "Fatima Khan" },
+    { rollNo: "101", name: "Rahim Ahmed", batch: "Batch A" },
+    { rollNo: "102", name: "Karim Hassan", batch: "Batch B" },
+    { rollNo: "103", name: "Fatima Khan", batch: "Batch A" },
     { rollNo: "104", name: "Ayesha Rahman" },
     { rollNo: "105", name: "Imran Ali" },
     { rollNo: "106", name: "Nadia Begum" },

@@ -12,6 +12,7 @@ function App() {
   const [date, setDate] = useState('');
   const [rollNo, setRollNo] = useState('');
   const [studentName, setStudentName] = useState('');
+  const [batch, setBatch] = useState('');
   const [showWarning, setShowWarning] = useState(false);
   const [recentLogs, setRecentLogs] = useState([]);
   const [notification, setNotification] = useState(null);
@@ -66,13 +67,16 @@ function App() {
       const student = findStudentByRoll(rollNo);
       if (student) {
         setStudentName(student.name);
+        setBatch(student.batch || '');
         setShowWarning(false);
       } else {
         setStudentName('');
+        setBatch('');
         setShowWarning(true);
       }
     } else {
       setStudentName('');
+      setBatch('');
       setShowWarning(false);
     }
   }, [rollNo]);
@@ -97,6 +101,7 @@ function App() {
       date,
       rollNo: rollNo.trim(),
       name: studentName,
+      batch: batch,
       time: getCurrentTime(),
       status,
     };
@@ -242,6 +247,22 @@ function App() {
                 }`}
             >
               {studentName || 'Name will appear automatically'}
+            </div>
+          </div>
+
+          {/* Batch Number (Auto-filled) */}
+          <div className="mb-6">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              <User className="w-4 h-4 text-primary" />
+              Batch Number
+            </label>
+            <div
+              className={`w-full px-4 py-2.5 rounded-lg border font-medium transition-all duration-200 ${batch
+                ? 'success-state animate-fadeIn'
+                : 'border-gray-300 bg-gray-50 text-gray-500'
+                }`}
+            >
+              {batch || 'Batch will appear automatically'}
             </div>
           </div>
 

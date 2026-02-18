@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { Search, ArrowLeft, Calendar, Clock, User, LogOut, LogIn, Edit2, Trash2, X, Save, CheckCircle } from 'lucide-react';
 import { groupExitEntryPairs } from '../utils/timeCalculations';
 import { updateLog, deleteLog, fetchLogs } from '../services/firestoreService';
+import { studentsDatabase } from '../data/students';
 
 function SearchPage({ onBack }) {
     // Independent data fetching - no longer depends on logs prop
     const [allLogs, setAllLogs] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchDate, setSearchDate] = useState('');
+    const [searchBatch, setSearchBatch] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [editingLog, setEditingLog] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -30,6 +32,9 @@ function SearchPage({ onBack }) {
         };
         loadLogs();
     }, []);
+
+    // Get unique batches
+    const batches = [...new Set(studentsDatabase.map(s => s.batch).filter(Boolean))].sort();
 
     const handleSearch = () => {
         if (!searchQuery.trim()) {
@@ -61,15 +66,31 @@ function SearchPage({ onBack }) {
     };
 
     const handleDateSearch = () => {
-        if (!searchDate) {
+        if (!searchDate && !searchBatch) {
             setSearchResults([]);
             setCurrentSearchType(null);
             setCurrentSearchValue('');
             return;
         }
 
-        // Filter logs by date
-        const filteredLogs = allLogs.filter(log => log.date === searchDate);
+        // Filter logs by date if selected, otherwise start with all logs (if only batch is selected)
+        let filteredLogs = searchDate
+            ? allLogs.filter(log => log.date === searchDate)
+            : allLogs;
+
+        // Filter by batch if selected
+        if (searchBatch) {
+            filteredLogs = filteredLogs.filter(log => {
+                // First check if batch is directly in log (future proofing)
+                if (log.batch) return log.batch === searchBatch;
+
+                // Fallback: look up student by roll number to find batch
+                const student = studentsDatabase.find(s =>
+                    s.rollNo.toLowerCase() === log.rollNo.toLowerCase()
+                );
+                return student && student.batch === searchBatch;
+            });
+        }
 
         // Group into exit/entry pairs
         const pairedRecords = groupExitEntryPairs(filteredLogs);
@@ -254,9 +275,24 @@ function SearchPage({ onBack }) {
                                 type="date"
                                 value={searchDate}
                                 onChange={(e) => setSearchDate(e.target.value)}
-                                onKeyPress={handleDateKeyPress}
                                 className="input-professional w-full px-4 py-3 rounded-lg"
                             />
+                        </div>
+                        <div className="flex-1">
+                            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                                <User className="w-4 h-4 text-primary" />
+                                Batch (Optional)
+                            </label>
+                            <select
+                                value={searchBatch}
+                                onChange={(e) => setSearchBatch(e.target.value)}
+                                className="input-professional w-full px-4 py-3 rounded-lg bg-white"
+                            >
+                                <option value="">All Batches</option>
+                                {batches.map(batch => (
+                                    <option key={batch} value={batch}>{batch}</option>
+                                ))}
+                            </select>
                         </div>
                         <div className="flex items-end">
                             <button
@@ -433,7 +469,7 @@ function SearchPage({ onBack }) {
                             <p className="text-gray-500">
                                 {searchQuery
                                     ? `No records found for "${searchQuery}". Try searching with a different name or roll number.`
-                                    : `No records found for ${new Date(searchDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. Try a different date.`
+                                    : `No records found for ${new Date(searchDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}${searchBatch ? ` in ${searchBatch}` : ''}.`
                                 }
                             </p>
                         </div>
