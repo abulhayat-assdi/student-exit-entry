@@ -13,6 +13,7 @@ function App() {
   const [rollNo, setRollNo] = useState('');
   const [studentName, setStudentName] = useState('');
   const [batch, setBatch] = useState('');
+  const [reason, setReason] = useState(''); // Optional reason for exit/entry
   const [showWarning, setShowWarning] = useState(false);
   const [recentLogs, setRecentLogs] = useState([]);
   const [notification, setNotification] = useState(null);
@@ -102,6 +103,7 @@ function App() {
       rollNo: rollNo.trim(),
       name: studentName,
       batch: batch,
+      reason: reason.trim(), // Add reason to log data
       time: getCurrentTime(),
       status,
     };
@@ -120,6 +122,7 @@ function App() {
       // Reset form
       setRollNo('');
       setStudentName('');
+      setReason(''); // Reset reason field
 
       // Note: recentLogs will be automatically updated via real-time listener
     } catch (error) {
@@ -266,6 +269,21 @@ function App() {
             </div>
           </div>
 
+          {/* Reason Input (Optional) */}
+          <div className="mb-6">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              <span className="text-gray-400">📝</span> {/* Icon for reason */}
+              Reason (Optional)
+            </label>
+            <input
+              type="text"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="E.g., Sick leave, Lunch, Official work..."
+              className="input-professional w-full px-4 py-2.5 rounded-lg text-gray-900 bg-white placeholder:text-gray-400"
+            />
+          </div>
+
           {/* Action Buttons */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
@@ -318,6 +336,11 @@ function App() {
                       <div>
                         <p className="font-semibold text-gray-900">{log.name}</p>
                         <p className="text-sm text-gray-600">Roll: {log.rollNo}</p>
+                        {log.reason && (
+                          <p className="text-xs text-gray-500 mt-1 italic">
+                            "{log.reason}"
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">

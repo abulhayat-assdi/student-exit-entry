@@ -13,6 +13,7 @@ function SearchPage({ onBack }) {
     const [searchResults, setSearchResults] = useState([]);
     const [editingLog, setEditingLog] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
+    const [viewReasonLog, setViewReasonLog] = useState(null); // State for viewing reason details
     const [editFormData, setEditFormData] = useState({});
     const [notification, setNotification] = useState(null);
 
@@ -122,12 +123,13 @@ function SearchPage({ onBack }) {
         setTimeout(() => setNotification(null), 3000);
     };
 
-    const handleEditClick = (log) => {
-        setEditingLog(log);
+    const handleEditClick = (id, data) => {
+        setEditingLog({ id, ...data });
         setEditFormData({
-            time: log.time,
-            status: log.status,
-            date: log.date
+            time: data.time,
+            status: data.status,
+            date: data.date,
+            reason: data.reason || ''
         });
     };
 
@@ -351,15 +353,43 @@ function SearchPage({ onBack }) {
                                                 <td className="py-4 px-4 text-gray-700 font-medium">{record.rollNo}</td>
                                                 <td className="py-4 px-4 text-gray-900 font-semibold">{record.name}</td>
                                                 <td className="py-4 px-4">
-                                                    <div className="flex items-center gap-2 text-red-600">
+                                                    <div className="flex items-center gap-2 text-red-600 group">
                                                         <LogOut className="w-4 h-4" />
                                                         <span className="font-medium">{record.exitTime}</span>
+                                                        <button
+                                                            onClick={() => handleEditClick(record.exitId, {
+                                                                time: record.exitTime,
+                                                                status: 'OUT',
+                                                                date: record.date,
+                                                                reason: record.exitReason,
+                                                                name: record.name,
+                                                                rollNo: record.rollNo
+                                                            })}
+                                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-500 transition-all"
+                                                            title="Edit Exit Log"
+                                                        >
+                                                            <Edit2 className="w-3 h-3" />
+                                                        </button>
                                                     </div>
                                                 </td>
                                                 <td className="py-4 px-4">
-                                                    <div className="flex items-center gap-2 text-indigo-600">
+                                                    <div className="flex items-center gap-2 text-indigo-600 group">
                                                         <LogIn className="w-4 h-4" />
                                                         <span className="font-medium">{record.entryTime}</span>
+                                                        <button
+                                                            onClick={() => handleEditClick(record.entryId, {
+                                                                time: record.entryTime,
+                                                                status: 'IN',
+                                                                date: record.date,
+                                                                reason: record.entryReason,
+                                                                name: record.name,
+                                                                rollNo: record.rollNo
+                                                            })}
+                                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-indigo-50 rounded text-gray-400 hover:text-indigo-500 transition-all"
+                                                            title="Edit Entry Log"
+                                                        >
+                                                            <Edit2 className="w-3 h-3" />
+                                                        </button>
                                                     </div>
                                                 </td>
                                                 <td className="py-4 px-4">
@@ -375,11 +405,11 @@ function SearchPage({ onBack }) {
                                                 <td className="py-4 px-4">
                                                     <div className="flex items-center justify-center gap-2">
                                                         <button
-                                                            onClick={() => handleEditClick(record)}
-                                                            className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
-                                                            title="Edit"
+                                                            onClick={() => setViewReasonLog(record)}
+                                                            className="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors"
+                                                            title="View Reason"
                                                         >
-                                                            <Edit2 className="w-4 h-4" />
+                                                            <span className="text-xs font-bold px-1">Reason</span>
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteClick(record)}
@@ -428,22 +458,53 @@ function SearchPage({ onBack }) {
                                                     })}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-2 text-red-600">
-                                                <LogOut className="w-4 h-4" />
-                                                <span>Out: {record.exitTime}</span>
+                                            <div className="flex items-center justify-between text-red-600">
+                                                <div className="flex items-center gap-2">
+                                                    <LogOut className="w-4 h-4" />
+                                                    <span>Out: {record.exitTime}</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleEditClick(record.exitId, {
+                                                        time: record.exitTime,
+                                                        status: 'OUT',
+                                                        date: record.date,
+                                                        reason: record.exitReason,
+                                                        name: record.name,
+                                                        rollNo: record.rollNo
+                                                    })}
+                                                    className="p-1 bg-red-50 text-red-500 rounded hover:bg-red-100"
+                                                >
+                                                    <Edit2 className="w-3 h-3" />
+                                                </button>
                                             </div>
-                                            <div className="flex items-center gap-2 text-indigo-600">
-                                                <LogIn className="w-4 h-4" />
-                                                <span>In: {record.entryTime}</span>
-                                            </div>
+                                            {record.entryTime !== '-' && (
+                                                <div className="flex items-center justify-between text-indigo-600">
+                                                    <div className="flex items-center gap-2">
+                                                        <LogIn className="w-4 h-4" />
+                                                        <span>In: {record.entryTime}</span>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleEditClick(record.entryId, {
+                                                            time: record.entryTime,
+                                                            status: 'IN',
+                                                            date: record.date,
+                                                            reason: record.entryReason,
+                                                            name: record.name,
+                                                            rollNo: record.rollNo
+                                                        })}
+                                                        className="p-1 bg-indigo-50 text-indigo-500 rounded hover:bg-indigo-100"
+                                                    >
+                                                        <Edit2 className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
                                             <button
-                                                onClick={() => handleEditClick(record)}
-                                                className="flex-1 px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors flex items-center justify-center gap-2 font-medium"
+                                                onClick={() => setViewReasonLog(record)}
+                                                className="flex-1 px-4 py-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors flex items-center justify-center gap-2 font-medium"
                                             >
-                                                <Edit2 className="w-4 h-4" />
-                                                Edit
+                                                <span>Reason</span>
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteClick(record)}
@@ -586,6 +647,19 @@ function SearchPage({ onBack }) {
                                             <option value="IN">Entry (IN)</option>
                                         </select>
                                     </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Reason
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editFormData.reason || ''}
+                                            onChange={(e) => setEditFormData({ ...editFormData, reason: e.target.value })}
+                                            placeholder="Enter reason..."
+                                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="flex gap-3 mt-6">
@@ -603,6 +677,55 @@ function SearchPage({ onBack }) {
                                         Cancel
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    )
+                }
+
+                {/* View Reason Modal */}
+                {
+                    viewReasonLog && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-fadeIn">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-2xl font-bold text-gray-900">Reason Details</h3>
+                                    <button
+                                        onClick={() => setViewReasonLog(null)}
+                                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4 mb-6">
+                                    <div className="bg-gray-50 rounded-xl p-4">
+                                        <p className="font-semibold text-gray-900">{viewReasonLog.name}</p>
+                                        <p className="text-sm text-gray-600">Roll: {viewReasonLog.rollNo}</p>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Exit Reason</h4>
+                                        <p className="text-gray-900 bg-red-50 p-3 rounded-lg border border-red-100">
+                                            {viewReasonLog.exitReason || <span className="text-gray-400 italic">No reason provided</span>}
+                                        </p>
+                                    </div>
+
+                                    {viewReasonLog.entryTime !== '-' && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Entry Reason</h4>
+                                            <p className="text-gray-900 bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                                                {viewReasonLog.entryReason || <span className="text-gray-400 italic">No reason provided</span>}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <button
+                                    onClick={() => setViewReasonLog(null)}
+                                    className="w-full px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-colors"
+                                >
+                                    Close
+                                </button>
                             </div>
                         </div>
                     )

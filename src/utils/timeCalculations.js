@@ -101,7 +101,9 @@ export function groupExitEntryPairs(logs) {
                         entryTime: log.time,
                         duration: calculateDuration(matchingExit.time, log.time),
                         exitId: matchingExit.id,  // Store exit log ID
-                        entryId: log.id           // Store entry log ID
+                        entryId: log.id,           // Store entry log ID
+                        exitReason: matchingExit.reason || '',
+                        entryReason: log.reason || ''
                     });
 
                     // Remove matched exit
@@ -123,7 +125,9 @@ export function groupExitEntryPairs(logs) {
                 entryTime: '-',
                 duration: 'Still Out',
                 exitId: exit.id,    // Store exit log ID
-                entryId: null       // No entry yet
+                entryId: null,      // No entry yet
+                exitReason: exit.reason || '',
+                entryReason: '-'
             });
         });
     });
