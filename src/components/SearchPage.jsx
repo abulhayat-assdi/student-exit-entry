@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Search, ArrowLeft, Calendar, Clock, User, LogOut, LogIn, Edit2, Trash2, X, Save, CheckCircle } from 'lucide-react';
+import { Search, ArrowLeft, Calendar, Clock, User, LogOut, LogIn, Edit2, Trash2, X, Save, CheckCircle, Download } from 'lucide-react';
 import { groupExitEntryPairs } from '../utils/timeCalculations';
 import { updateLog, deleteLog, fetchLogs } from '../services/firestoreService';
 import { studentsDatabase } from '../data/students';
+import * as XLSX from 'xlsx';
 
 function SearchPage({ onBack }) {
     // Independent data fetching - no longer depends on logs prop
@@ -16,6 +17,9 @@ function SearchPage({ onBack }) {
     const [viewReasonLog, setViewReasonLog] = useState(null); // State for viewing reason details
     const [editFormData, setEditFormData] = useState({});
     const [notification, setNotification] = useState(null);
+    const [showDownloadModal, setShowDownloadModal] = useState(false);
+    const [downloadFromDate, setDownloadFromDate] = useState('');
+    const [downloadToDate, setDownloadToDate] = useState('');
 
     // Track current search to refresh after delete
     const [currentSearchType, setCurrentSearchType] = useState(null); // 'name' or 'date'
@@ -207,24 +211,101 @@ function SearchPage({ onBack }) {
         }
     };
 
+    const handleDownloadExcel = () => {
+        if (!downloadFromDate || !downloadToDate) {
+            showNotification('Please select both From and To dates', 'error');
+            return;
+        }
+
+        const fromTime = new Date(downloadFromDate).getTime();
+        const toDateObj = new Date(downloadToDate);
+        toDateObj.setHours(23, 59, 59, 999);
+        const toTime = toDateObj.getTime();
+
+        if (fromTime > toTime) {
+            showNotification('From date cannot be after To date', 'error');
+            return;
+        }
+
+        const filteredLogs = allLogs.filter(log => {
+            const logTime = new Date(log.date).getTime();
+            return logTime >= fromTime && logTime <= toTime;
+        });
+
+        if (filteredLogs.length === 0) {
+            showNotification('No records found in this date range', 'error');
+            return;
+        }
+
+        const pairedRecords = groupExitEntryPairs(filteredLogs);
+        pairedRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        const excelData = pairedRecords.map(record => ({
+            'Exit Date': record.date,
+            'Roll Number': record.rollNo,
+            'Student Name': record.name,
+            'Exit Time': record.exitTime,
+            'Exit Reason': record.exitReason || '-',
+            'Entry Date': record.entryDate !== '-' ? record.entryDate : '',
+            'Entry Time': record.entryTime,
+            'Entry Reason': record.entryReason || '-',
+            'Duration': record.duration
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+        // Add styling/width (optional, but good for readability)
+        const columnWidths = [
+            { wch: 12 }, // Exit Date
+            { wch: 12 }, // Roll Number
+            { wch: 25 }, // Student Name
+            { wch: 15 }, // Exit Time
+            { wch: 20 }, // Exit Reason
+            { wch: 12 }, // Entry Date
+            { wch: 15 }, // Entry Time
+            { wch: 20 }, // Entry Reason
+            { wch: 15 }, // Duration
+        ];
+        worksheet['!cols'] = columnWidths;
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Student Logs');
+
+        XLSX.writeFile(workbook, `Student_Logs_${downloadFromDate}_to_${downloadToDate}.xlsx`);
+
+        setShowDownloadModal(false);
+        showNotification('Report downloaded successfully!', 'success');
+    };
+
     return (
         <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
             <div className="max-w-6xl w-full">
                 {/* Header */}
-                <div className="mb-8 animate-fadeIn text-center">
-                    <button
-                        onClick={onBack}
-                        className="inline-flex items-center gap-2 text-primary hover:text-primary-dark font-medium mb-4 transition-all duration-200 hover:-translate-x-1"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                        Back to Dashboard
-                    </button>
-                    <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-3">
-                        Search History
-                    </h1>
-                    <p className="text-lg text-gray-600">
-                        Search student exit/entry records by name, roll number, or date
-                    </p>
+                <div className="mb-8 animate-fadeIn">
+                    <div className="flex justify-between items-center mb-4">
+                        <button
+                            onClick={onBack}
+                            className="inline-flex items-center gap-2 text-primary hover:text-primary-dark font-medium transition-all duration-200 hover:-translate-x-1"
+                        >
+                            <ArrowLeft className="w-5 h-5" />
+                            Back
+                        </button>
+                        <button
+                            onClick={() => setShowDownloadModal(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 hover:bg-green-100 hover:shadow-sm font-medium rounded-lg transition-all duration-200 border border-green-200"
+                        >
+                            <Download className="w-4 h-4" />
+                            <span className="hidden sm:inline">Download Excel</span>
+                        </button>
+                    </div>
+                    <div className="text-center">
+                        <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-3">
+                            Search History
+                        </h1>
+                        <p className="text-lg text-gray-600">
+                            Search student exit/entry records by name, roll number, or date
+                        </p>
+                    </div>
                 </div>
 
                 {/* Search Bar */}
@@ -317,6 +398,38 @@ function SearchPage({ onBack }) {
                                 Search Results ({searchResults.length} records)
                             </h2>
 
+                            {/* Student Summary Profile (Only if all results are for one student) */}
+                            {(() => {
+                                const uniqueStudents = [...new Set(searchResults.map(r => r.rollNo))];
+                                if (uniqueStudents.length === 1) {
+                                    const student = searchResults[0];
+                                    const totalLeaves = searchResults.length;
+                                    const currentlyOut = student.duration === 'Still Out';
+                                    return (
+                                        <div className="mb-8 p-6 bg-gradient-to-br from-indigo-50 flex items-center gap-6 to-purple-50 rounded-xl border border-indigo-100 shadow-sm">
+                                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm border-2 border-indigo-200">
+                                                <User className="w-8 h-8 text-indigo-600" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h3 className="text-xl font-bold text-gray-900">{student.name}</h3>
+                                                <p className="text-gray-600 font-medium">Roll Number: <span className="text-gray-900">{student.rollNo}</span></p>
+                                            </div>
+                                            <div className="text-right flex flex-col gap-2">
+                                                <div className="inline-block px-4 py-2 bg-white rounded-lg border border-indigo-100 shadow-sm">
+                                                    <span className="text-gray-600 text-sm font-medium mr-2">Total Logs:</span>
+                                                    <span className="text-indigo-700 font-bold text-lg">{totalLeaves}</span>
+                                                </div>
+                                                <div className={`inline-block px-4 py-2 rounded-lg text-sm font-bold shadow-sm ${currentlyOut ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-green-100 text-green-800 border border-green-200'}`}>
+                                                    {currentlyOut ? 'Currently Outside Campus' : 'Currently Inside Campus'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })()}
+
+
                             {/* Desktop Table View */}
                             <div className="hidden md:block overflow-x-auto">
                                 <table className="w-full">
@@ -375,12 +488,19 @@ function SearchPage({ onBack }) {
                                                 <td className="py-4 px-4">
                                                     <div className="flex items-center gap-2 text-indigo-600 group">
                                                         <LogIn className="w-4 h-4" />
-                                                        <span className="font-medium">{record.entryTime}</span>
+                                                        <span className="font-medium">
+                                                            {record.entryTime}
+                                                            {record.entryDate && record.entryDate !== '-' && record.entryDate !== record.date && (
+                                                                <span className="text-xs text-gray-500 ml-1">
+                                                                    ({new Date(record.entryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
+                                                                </span>
+                                                            )}
+                                                        </span>
                                                         <button
                                                             onClick={() => handleEditClick(record.entryId, {
                                                                 time: record.entryTime,
                                                                 status: 'IN',
-                                                                date: record.date,
+                                                                date: record.entryDate !== '-' ? record.entryDate : record.date,
                                                                 reason: record.entryReason,
                                                                 name: record.name,
                                                                 rollNo: record.rollNo
@@ -481,13 +601,20 @@ function SearchPage({ onBack }) {
                                                 <div className="flex items-center justify-between text-indigo-600">
                                                     <div className="flex items-center gap-2">
                                                         <LogIn className="w-4 h-4" />
-                                                        <span>In: {record.entryTime}</span>
+                                                        <span>
+                                                            In: {record.entryTime}
+                                                            {record.entryDate && record.entryDate !== '-' && record.entryDate !== record.date && (
+                                                                <span className="text-xs text-gray-500 ml-1">
+                                                                    ({new Date(record.entryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
+                                                                </span>
+                                                            )}
+                                                        </span>
                                                     </div>
                                                     <button
                                                         onClick={() => handleEditClick(record.entryId, {
                                                             time: record.entryTime,
                                                             status: 'IN',
-                                                            date: record.date,
+                                                            date: record.entryDate !== '-' ? record.entryDate : record.date,
                                                             reason: record.entryReason,
                                                             name: record.name,
                                                             rollNo: record.rollNo
@@ -772,6 +899,66 @@ function SearchPage({ onBack }) {
                                         className="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-colors"
                                     >
                                         Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+
+                {/* Download Modal */}
+                {
+                    showDownloadModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-fadeIn">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                                        <Download className="w-6 h-6 text-green-600" />
+                                        Download Report
+                                    </h3>
+                                    <button
+                                        onClick={() => setShowDownloadModal(false)}
+                                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4 mb-6">
+                                    <p className="text-gray-600 text-sm">
+                                        Select a date range to download the student logs as an Excel (.xlsx) file.
+                                    </p>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            From Date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={downloadFromDate}
+                                            onChange={(e) => setDownloadFromDate(e.target.value)}
+                                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            To Date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={downloadToDate}
+                                            onChange={(e) => setDownloadToDate(e.target.value)}
+                                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={handleDownloadExcel}
+                                        className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                                    >
+                                        <Download className="w-5 h-5" />
+                                        Download
                                     </button>
                                 </div>
                             </div>

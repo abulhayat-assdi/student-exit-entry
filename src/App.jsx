@@ -14,10 +14,12 @@ function App() {
   const [studentName, setStudentName] = useState('');
   const [batch, setBatch] = useState('');
   const [reason, setReason] = useState(''); // Optional reason for exit/entry
+  const [logType, setLogType] = useState(null); // 'IN' or 'OUT'
   const [showWarning, setShowWarning] = useState(false);
   const [recentLogs, setRecentLogs] = useState([]);
   const [notification, setNotification] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Set current date and initialize Firestore on mount
   useEffect(() => {
@@ -31,6 +33,13 @@ function App() {
 
     // Subscribe to real-time log updates
     loadLogsFromFirestore();
+
+    // Setup live clock
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
   }, []);
 
   // Load logs from Firestore with real-time updates
@@ -123,6 +132,7 @@ function App() {
       setRollNo('');
       setStudentName('');
       setReason(''); // Reset reason field
+      setLogType(null); // Reset selection
 
       // Note: recentLogs will be automatically updated via real-time listener
     } catch (error) {
@@ -166,8 +176,12 @@ function App() {
             </p>
           </div>
 
-          {/* Navigation Button */}
-          <div className="flex justify-center">
+          {/* Live Clock & Navigation Button */}
+          <div className="flex flex-col items-center gap-4">
+            <div className="text-lg font-bold text-gray-800 bg-gray-100 px-6 py-3 rounded-full shadow-inner flex items-center gap-2 border border-gray-200">
+              <Clock className="w-5 h-5 text-primary" />
+              {currentTime.toLocaleTimeString('en-US', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+            </div>
             <button
               onClick={() => setCurrentPage('search')}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-medium rounded-lg shadow-sm hover:bg-primary-dark hover:-translate-y-0.5 transition-all duration-200"
@@ -199,120 +213,142 @@ function App() {
         <div className="professional-card p-8 mb-6 animate-scaleIn">
           <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
             <Clock className="w-5 h-5 text-primary" />
-            Log Entry
+            {logType ? (logType === 'IN' ? 'Log Entry (Coming In)' : 'Log Exit (Going Out)') : 'Select Action'}
           </h2>
 
-          {/* Date Picker */}
-          <div className="mb-6">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <Calendar className="w-4 h-4 text-primary" />
-              Date
-            </label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="input-professional w-full px-4 py-2.5 rounded-lg text-gray-900 bg-white"
-            />
-          </div>
-
-          {/* Roll Number Input */}
-          <div className="mb-6">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <User className="w-4 h-4 text-primary" />
-              Roll Number
-            </label>
-            <input
-              type="text"
-              value={rollNo}
-              onChange={(e) => setRollNo(e.target.value)}
-              placeholder="Enter roll number (e.g., 101)"
-              className="input-professional w-full px-4 py-2.5 rounded-lg text-gray-900 bg-white placeholder:text-gray-400"
-            />
-            {showWarning && rollNo && (
-              <p className="mt-2 text-sm text-warning flex items-center gap-1.5 animate-fadeIn">
-                <AlertCircle className="w-4 h-4" />
-                Student not found in database
-              </p>
-            )}
-          </div>
-
-          {/* Student Name (Auto-filled) */}
-          <div className="mb-6">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <User className="w-4 h-4 text-primary" />
-              Student Name
-            </label>
-            <div
-              className={`w-full px-4 py-2.5 rounded-lg border font-medium transition-all duration-200 ${studentName
-                ? 'success-state animate-fadeIn'
-                : 'border-gray-300 bg-gray-50 text-gray-500'
-                }`}
-            >
-              {studentName || 'Name will appear automatically'}
+          {!logType ? (
+            <div className="flex flex-col sm:flex-row gap-4 justify-center py-4">
+              <button
+                onClick={() => setLogType('OUT')}
+                className="flex-1 px-8 py-8 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border-2 border-red-200 hover:border-red-500 font-semibold rounded-xl transition-all duration-200 flex flex-col items-center justify-center gap-4 group shadow-sm hover:shadow-md"
+              >
+                <LogOut className="w-10 h-10 group-hover:scale-110 transition-transform" />
+                <span className="text-xl">Student Exit (Going Out)</span>
+              </button>
+              <button
+                onClick={() => setLogType('IN')}
+                className="flex-1 px-8 py-8 bg-primary-pale text-primary hover:bg-primary hover:text-white border-2 border-primary-light hover:border-primary font-semibold rounded-xl transition-all duration-200 flex flex-col items-center justify-center gap-4 group shadow-sm hover:shadow-md"
+              >
+                <LogIn className="w-10 h-10 group-hover:scale-110 transition-transform" />
+                <span className="text-xl">Student Entry (Coming In)</span>
+              </button>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Date Picker */}
+              <div className="mb-6">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="input-professional w-full px-4 py-2.5 rounded-lg text-gray-900 bg-white"
+                />
+              </div>
 
-          {/* Batch Number (Auto-filled) */}
-          <div className="mb-6">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <User className="w-4 h-4 text-primary" />
-              Batch Number
-            </label>
-            <div
-              className={`w-full px-4 py-2.5 rounded-lg border font-medium transition-all duration-200 ${batch
-                ? 'success-state animate-fadeIn'
-                : 'border-gray-300 bg-gray-50 text-gray-500'
-                }`}
-            >
-              {batch || 'Batch will appear automatically'}
-            </div>
-          </div>
+              {/* Roll Number Input */}
+              <div className="mb-6">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <User className="w-4 h-4 text-primary" />
+                  Roll Number
+                </label>
+                <input
+                  type="text"
+                  value={rollNo}
+                  onChange={(e) => setRollNo(e.target.value)}
+                  placeholder="Enter roll number (e.g., 101)"
+                  className="input-professional w-full px-4 py-2.5 rounded-lg text-gray-900 bg-white placeholder:text-gray-400"
+                />
+                {showWarning && rollNo && (
+                  <p className="mt-2 text-sm text-warning flex items-center gap-1.5 animate-fadeIn">
+                    <AlertCircle className="w-4 h-4" />
+                    Student not found in database
+                  </p>
+                )}
+              </div>
 
-          {/* Reason Input (Optional) */}
-          <div className="mb-6">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <span className="text-gray-400">📝</span> {/* Icon for reason */}
-              Reason (Optional)
-            </label>
-            <input
-              type="text"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="E.g., Sick leave, Lunch, Official work..."
-              className="input-professional w-full px-4 py-2.5 rounded-lg text-gray-900 bg-white placeholder:text-gray-400"
-            />
-          </div>
+              {/* Student Name (Auto-filled) */}
+              <div className="mb-6">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <User className="w-4 h-4 text-primary" />
+                  Student Name
+                </label>
+                <div
+                  className={`w-full px-4 py-2.5 rounded-lg border font-medium transition-all duration-200 ${studentName
+                    ? 'success-state animate-fadeIn'
+                    : 'border-gray-300 bg-gray-50 text-gray-500'
+                    }`}
+                >
+                  {studentName || 'Name will appear automatically'}
+                </div>
+              </div>
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button
-              onClick={() => handleLog('OUT')}
-              disabled={!studentName}
-              className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none flex items-center justify-center gap-2"
-            >
-              <LogOut className="w-5 h-5" />
-              Log Exit (Going Out)
-            </button>
-            <button
-              onClick={() => handleLog('IN')}
-              disabled={!studentName}
-              className="px-6 py-3 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none flex items-center justify-center gap-2"
-            >
-              <LogIn className="w-5 h-5" />
-              Log Entry (Coming In)
-            </button>
-          </div>
+              {/* Batch Number (Auto-filled) */}
+              <div className="mb-6">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <User className="w-4 h-4 text-primary" />
+                  Batch Number
+                </label>
+                <div
+                  className={`w-full px-4 py-2.5 rounded-lg border font-medium transition-all duration-200 ${batch
+                    ? 'success-state animate-fadeIn'
+                    : 'border-gray-300 bg-gray-50 text-gray-500'
+                    }`}
+                >
+                  {batch || 'Batch will appear automatically'}
+                </div>
+              </div>
+
+              {/* Reason Input (Optional) */}
+              <div className="mb-6">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <span className="text-gray-400">📝</span> {/* Icon for reason */}
+                  Reason (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="E.g., Sick leave, Lunch, Official work..."
+                  className="input-professional w-full px-4 py-2.5 rounded-lg text-gray-900 bg-white placeholder:text-gray-400"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setLogType(null)}
+                  className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg shadow-sm hover:shadow transition-all duration-200 w-1/3"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={() => handleLog(logType)}
+                  disabled={!studentName}
+                  className={`px-6 py-3 ${logType === 'OUT' ? 'bg-red-500 hover:bg-red-600' : 'bg-primary hover:bg-primary-dark'} text-white font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none flex items-center justify-center gap-2 flex-1`}
+                >
+                  {logType === 'OUT' ? (
+                    <><LogOut className="w-5 h-5" /> Save Exit Log</>
+                  ) : (
+                    <><LogIn className="w-5 h-5" /> Save Entry Log</>
+                  )}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Recent Activity Feed */}
         {(() => {
-          const filteredLogs = recentLogs.filter(log => log.date === date);
+          const filteredLogs = recentLogs.slice(0, 6);
           return filteredLogs.length > 0 && (
             <div className="professional-card p-8 animate-slideUp">
               <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-primary" />
-                Today's Activity - {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                Recent Logs
               </h2>
               <div className="space-y-3">
                 {filteredLogs.map((log, index) => (
